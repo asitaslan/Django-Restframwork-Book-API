@@ -7,6 +7,7 @@ django.setup()
 
 from django.contrib.auth.models import User
 from faker import  Faker
+import requests
 
 def set_user():
     fake = Faker(['en_us'])
@@ -33,3 +34,33 @@ def set_user():
 
     user.set_password('testing123...')
     user.save()
+
+from pprint import pprint
+from kitaplar.api.serializers import KitapSerializer
+
+def kitap_ekle(konu):
+    fake = Faker(['en_us'])
+    url = 'https://openlibrary.org/search.json'
+    payload = {'q': konu}
+    response = requests.get(url, params = payload)
+
+    if response.status_code != 200:
+        print('Hatali istek yapildi', response.status_code)
+        return
+    jsn = response.json()
+    kitaplar = jsn.get('docs')
+    for kitap in kitaplar:
+        kitap_adi = kitap.get('title')
+        data = dict(
+            isim = kitap_adi,
+            yazar = kitap.get('author_name')[0],
+            aciklama = '-'.join(kitap.get('text')),
+            yayin_tarihi = fake.date_time_between(start_date = '-10y', end_date = 'now', tzinfo = None),
+        )
+
+        serializer = KitapSerializer(data = data)
+        if serializer.is_valid():
+            serializer.save()
+            print('kitap kaydedildi', kitap_adi)
+        else:
+            continue
